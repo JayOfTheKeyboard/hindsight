@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from hindsight_api.api import page_markdown
 from hindsight_api.engine.memory_engine import KEEP_PARENT, DirectivePage, MentalModelPage
+from hindsight_api.engine.response_models import MemoryFact, RecallResult
 from hindsight_api.mcp_tools import (
     _ALL_TOOLS,
     KNOWLEDGE_ROOT_PARENT,
@@ -2734,9 +2735,7 @@ class TestRecallResponseSize:
     """max_tokens budgets fact text only; the MCP payload around it should not add more than it must."""
 
     @staticmethod
-    def _result():
-        from hindsight_api.engine.response_models import MemoryFact, RecallResult
-
+    def _result() -> RecallResult:
         facts = [
             MemoryFact(
                 id=f"fact-{i}",
