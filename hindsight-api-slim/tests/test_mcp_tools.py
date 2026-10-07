@@ -2,7 +2,7 @@
 
 import json
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, get_args
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from hindsight_api.api import page_markdown
 from hindsight_api.engine.memory_engine import KEEP_PARENT, DirectivePage, MentalModelPage
 from hindsight_api.engine.response_models import MemoryFact, RecallResult
+from hindsight_api.engine.search.tags import TagsMatch
 from hindsight_api.mcp_tools import (
     _ALL_TOOLS,
     KNOWLEDGE_ROOT_PARENT,
@@ -1782,6 +1783,55 @@ class TestListToolBounds:
 # =========================================================================
 # Tags & Bank Tool Tests
 # =========================================================================
+
+
+@pytest.mark.asyncio
+class TestRecallReflectTagsMatch:
+    """recall and reflect take the same tags_match values as their HTTP endpoints.
+
+    Typed as a plain str, a mistyped mode ("any-strict") reached the engine, whose
+    parser falls back to "any" for anything it does not know. That admits untagged
+    memories, so a scoped recall silently widened instead of failing as HTTP does (422).
+    """
+
+    @pytest.fixture
+    def mock_memory(self, mock_memory):
+        # call_tool runs the bank tool filter first; leave every tool enabled.
+        mock_memory._config_resolver.get_bank_config = AsyncMock(return_value={})
+        mock_memory._operation_validator = None
+        # recall and reflect are audited; skip the audit wrapper so call_tool reaches the tool.
+        mock_memory.audit_logger.action_allowed = MagicMock(return_value=False)
+        return mock_memory
+
+    @pytest.mark.parametrize("include_bank_id", [True, False])
+    @pytest.mark.parametrize("tool", ["recall", "reflect"])
+    async def test_unknown_mode_is_rejected(self, mock_memory, tool, include_bank_id):
+        mcp = _make_mcp_server(mock_memory, {tool}, include_bank_id=include_bank_id)
+        with pytest.raises(ValidationError):
+            await mcp.call_tool(tool, {"query": "q", "tags": ["project:x"], "tags_match": "any-strict"})
+        getattr(mock_memory, f"{tool}_async").assert_not_called()
+
+    @pytest.mark.parametrize("include_bank_id", [True, False])
+    @pytest.mark.parametrize("tool", ["recall", "reflect"])
+    async def test_schema_lists_every_mode(self, mock_memory, tool, include_bank_id):
+        mcp = _make_mcp_server(mock_memory, {tool}, include_bank_id=include_bank_id)
+        schema = _tools(mcp)[tool].parameters["properties"]["tags_match"]
+        assert set(schema["enum"]) == set(get_args(TagsMatch))
+
+    @pytest.mark.parametrize("include_bank_id", [True, False])
+    async def test_reflect_description_names_every_mode(self, mock_memory, include_bank_id):
+        # reflect's description is its docstring, so this is what an MCP client reads.
+        # (recall registers a fixed description instead; its schema enum covers it.)
+        mcp = _make_mcp_server(mock_memory, {"reflect"}, include_bank_id=include_bank_id)
+        doc = _tools(mcp)["reflect"].description.split("tags_match:", 1)[1].split("apply_all_directives:", 1)[0]
+        for mode in get_args(TagsMatch):
+            assert f"'{mode}'" in doc, f"reflect docs omit tags_match={mode!r}"
+
+    @pytest.mark.parametrize("tool", ["recall", "reflect"])
+    async def test_strict_mode_reaches_the_engine(self, mock_memory, tool):
+        mcp = _make_mcp_server(mock_memory, {tool}, include_bank_id=True)
+        await mcp.call_tool(tool, {"query": "q", "tags": ["project:x"], "tags_match": "any_strict"})
+        assert getattr(mock_memory, f"{tool}_async").call_args.kwargs["tags_match"] == "any_strict"
 
 
 @pytest.mark.asyncio
