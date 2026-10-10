@@ -1637,6 +1637,49 @@ async def test_list_memories_no_tag_filter_returns_all(api_client):
     assert {_ALPHA_ALICE, _ALPHA_BOB, _BETA, _UNTAGGED} <= sigs
 
 
+async def _seed_tagged_documents(memory, request_context) -> str:
+    """One tagged and one untagged document in a fresh bank. The content is gibberish so
+    no facts are extracted; the documents are persisted either way."""
+    bank_id = f"list_docs_tags_{datetime.now().timestamp()}"
+    for document_id, tags in (("doc-alpha", ["project:alpha"]), ("doc-untagged", None)):
+        await memory.retain_batch_async(
+            bank_id=bank_id,
+            contents=[{"content": f"xyzabc123 !@# $$$ {document_id}"}],
+            document_id=document_id,
+            document_tags=tags,
+            request_context=request_context,
+        )
+    return bank_id
+
+
+@pytest.mark.asyncio
+async def test_list_documents_http_any_strict_excludes_untagged(api_client, memory, request_context):
+    """Sanity for the case below: a valid strict mode over HTTP leaves the untagged document out."""
+    bank_id = await _seed_tagged_documents(memory, request_context)
+    response = await api_client.get(
+        f"/v1/default/banks/{bank_id}/documents", params={"tags": ["project:alpha"], "tags_match": "any_strict"}
+    )
+    assert response.status_code == 200, response.text
+    assert {d["id"] for d in response.json()["items"]} == {"doc-alpha"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("tags_match", ["any-strict", "strict"])
+async def test_list_documents_http_rejects_unknown_tags_match(api_client, memory, request_context, tags_match):
+    """An unknown tags_match is a 422, as on /memories/list and recall.
+
+    Declared as a plain str, a mistyped mode reached the SQL builder, whose parser falls
+    back to "any" for anything it does not know. That admits untagged documents, so a
+    request meant to be strict silently widened.
+    """
+    bank_id = await _seed_tagged_documents(memory, request_context)
+    response = await api_client.get(
+        f"/v1/default/banks/{bank_id}/documents", params={"tags": ["project:alpha"], "tags_match": tags_match}
+    )
+    ids = {d["id"] for d in response.json().get("items", [])} if response.status_code == 200 else None
+    assert response.status_code == 422, f"got {response.status_code}, documents returned: {ids}"
+
+
 # ============================================================================
 # Integration Tests for tag_groups compound filtering
 # ============================================================================

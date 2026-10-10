@@ -7778,8 +7778,8 @@ def _register_routes(app: FastAPI):
             None, description="Case-insensitive substring filter on document ID (e.g. 'report' matches 'report-2024')"
         ),
         tags: list[str] | None = Query(None, description="Filter documents by tags"),
-        tags_match: str = Query(
-            "any_strict", description="How to match tags: 'any', 'all', 'any_strict', 'all_strict'"
+        tags_match: TagsMatch = Query(
+            "any_strict", description="How to match tags: 'any', 'all', 'any_strict', 'all_strict', 'exact'"
         ),
         time_field: DocumentTimeField | None = Query(
             default=None,
@@ -7801,7 +7801,7 @@ def _register_routes(app: FastAPI):
             bank_id: Memory Bank ID (from path)
             q: Case-insensitive substring filter on document ID
             tags: Filter documents by tags
-            tags_match: How to match tags (any, all, any_strict, all_strict)
+            tags_match: How to match tags (any, all, any_strict, all_strict, exact)
             time_field: Time axis to filter and order by (created_at, updated_at)
             start_date: Inclusive lower bound on time_field (ISO-8601)
             end_date: Exclusive upper bound on time_field (ISO-8601)

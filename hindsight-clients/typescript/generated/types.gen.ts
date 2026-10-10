@@ -9055,9 +9055,9 @@ export type ListDocumentsData = {
     /**
      * Tags Match
      *
-     * How to match tags: 'any', 'all', 'any_strict', 'all_strict'
+     * How to match tags: 'any', 'all', 'any_strict', 'all_strict', 'exact'
      */
-    tags_match?: string;
+    tags_match?: "any" | "all" | "any_strict" | "all_strict" | "exact";
     /**
      * Time Field
      *
