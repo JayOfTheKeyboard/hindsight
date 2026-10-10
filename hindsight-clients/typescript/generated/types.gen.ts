@@ -7214,7 +7214,7 @@ export type GetGraphData = {
     /**
      * Tags Match
      */
-    tags_match?: string;
+    tags_match?: "any" | "all" | "any_strict" | "all_strict" | "exact";
     /**
      * Document Id
      */

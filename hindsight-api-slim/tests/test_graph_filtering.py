@@ -123,6 +123,34 @@ async def test_graph_tags_filter_returns_matching(api_client, test_bank_id):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("tags_match", ["all-strict", "strict"])
+async def test_graph_rejects_unknown_tags_match(api_client, test_bank_id, tags_match):
+    """An unknown tags_match is a 422, as on /memories/list and recall.
+
+    Declared as a plain str, a mistyped mode reached the SQL builder, whose parser falls
+    back to "any" for anything it does not know. That admits untagged memories, so a
+    graph meant to be scoped strictly silently widened.
+    """
+    response = await api_client.post(
+        f"/v1/default/banks/{test_bank_id}/memories",
+        json={
+            "items": [
+                {"content": "Alice loves hiking.", "tags": ["user_alice"]},
+                {"content": "Dave enjoys sailing on weekends."},
+            ]
+        },
+    )
+    assert response.status_code == 200
+
+    response = await api_client.get(
+        f"/v1/default/banks/{test_bank_id}/graph",
+        params={"tags": "user_alice", "tags_match": tags_match},
+    )
+    texts = [row["text"] for row in response.json()["table_rows"]] if response.status_code == 200 else None
+    assert response.status_code == 422, f"got {response.status_code}, rows returned: {texts}"
+
+
+@pytest.mark.asyncio
 async def test_graph_q_and_tags_filter_combined(api_client, test_bank_id):
     """Combining q and tags filters applies both server-side."""
     response = await api_client.post(

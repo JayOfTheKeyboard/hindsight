@@ -12532,7 +12532,7 @@ class MemoryEngine(MemoryEngineInterface):
         limit: int = 1000,
         q: str | None = None,
         tags: list[str] | None = None,
-        tags_match: str = "all_strict",
+        tags_match: TagsMatch = "all_strict",
         document_id: str | None = None,
         chunk_id: str | None = None,
         request_context: "RequestContext",
@@ -12581,11 +12581,7 @@ class MemoryEngine(MemoryEngineInterface):
                 document_id=document_id,
                 chunk_id=chunk_id,
                 tags=tags,
-                # `get_graph_data` and its one HTTP caller both declare a plain `str` here, and
-                # nothing validates it -- an unknown mode reaches the SQL builders, which fall back
-                # to "any". Narrowing the query parameter would turn that into a 400, which is a
-                # better answer but an API change; this states the gap without making it.
-                tags_match=cast(TagsMatch, tags_match),
+                tags_match=tags_match,
                 tag_groups=tag_scope,
                 limit=limit,
             )

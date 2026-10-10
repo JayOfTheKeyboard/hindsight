@@ -5752,7 +5752,7 @@ def _register_routes(app: FastAPI):
         limit: int = Query(default=1000, ge=0),
         q: str | None = None,
         tags: list[str] | None = Query(None),
-        tags_match: str = "all_strict",
+        tags_match: TagsMatch = "all_strict",
         document_id: str | None = None,
         chunk_id: str | None = None,
         request_context: RequestContext = Depends(get_request_context),

@@ -202,6 +202,13 @@
             "in": "query",
             "required": false,
             "schema": {
+              "enum": [
+                "any",
+                "all",
+                "any_strict",
+                "all_strict",
+                "exact"
+              ],
               "type": "string",
               "default": "all_strict",
               "title": "Tags Match"

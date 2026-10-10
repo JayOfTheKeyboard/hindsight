@@ -142,6 +142,12 @@ paths:
         required: false
         schema:
           default: all_strict
+          enum:
+          - any
+          - all
+          - any_strict
+          - all_strict
+          - exact
           title: Tags Match
           type: string
         style: form
